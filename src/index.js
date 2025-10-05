@@ -178,7 +178,7 @@ async function handleSession(env, websocket) {
 				let event = message[1];
 
 				if (!isOwner) {
-					websocket.send('["OK","'+event.id+'",false,"Only the authed owner can send events."]');
+					websocket.send('["OK","'+event.id+'",false,"auth-required: Only the authed owner can send events."]');
 					return;
 				}
 				if (event.pubkey != authedPubkey) {
