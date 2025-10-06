@@ -240,6 +240,7 @@ async function doReq(env, websocket, message, isOwner) {
 				let event = events[j];
 				if (!isOwner && (event.kind == 4 || event.kind == 1059)) {
 					// only the owner can receive DM and GiftWrap event
+					console.log("close event for unauthenticated users, event id: " + event.id);
 					await websocket.send('["CLOSE","' + event.id + '","auth-required: we can\'t serve DMs and GiftWrap to unauthenticated users."]');
 					continue;
 				}
