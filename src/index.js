@@ -7,7 +7,7 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-import {bytesToHex} from '@noble/hashes/utils'
+import { bytesToHex } from '@noble/hashes/utils'
 import { sha256 } from '@noble/hashes/sha256'
 import { schnorr } from '@noble/curves/secp256k1'
 import { decode as base64Decode } from 'js-base64';
@@ -15,6 +15,7 @@ import { decode as base64Decode } from 'js-base64';
 let utf8Encoder = new TextEncoder()
 
 const EVENT_KIND = {
+	"EVENT_ENCRYPTED_DIRECT_MESSAGE": 1,
 	"EVENT_DELETION": 5,
 	"STORAGE_SHARED_FILE": 1064,
 }
@@ -178,7 +179,7 @@ async function handleSession(env, websocket) {
 				let event = message[1];
 
 				if (!isOwner) {
-					websocket.send('["OK","'+event.id+'",false,"auth-required: Only the authed owner can send events."]');
+					websocket.send('["OK","' + event.id + '",false,"auth-required: Only the authed owner can send events."]');
 					return;
 				}
 				if (event.pubkey != authedPubkey) {
@@ -189,7 +190,7 @@ async function handleSession(env, websocket) {
 
 				// due to this event is sended from owner, we don't valid the sig.
 				await doEvent(env, websocket, event);
-				await websocket.send('["OK","'+event.id+'",true,""]');
+				await websocket.send('["OK","' + event.id + '",true,""]');
 			} else if (typ == 'CLOSE') {
 				// we haven't holder subscription and push, so just ignore the close message.
 			} else if (typ == 'AUTH') {
@@ -221,11 +222,11 @@ async function handleSession(env, websocket) {
 		console.log(evt);
 	});
 
-	websocket.send('["AUTH","'+challengeStr+'"]')
+	websocket.send('["AUTH","' + challengeStr + '"]')
 }
 
 function sendNotice(websocket, msg) {
-	websocket.send('["NOTICE","'+msg+'"]');
+	websocket.send('["NOTICE","' + msg + '"]');
 }
 
 async function doReq(env, websocket, message, isOwner) {
@@ -239,6 +240,7 @@ async function doReq(env, websocket, message, isOwner) {
 				let event = events[j];
 				if (!isOwner && (event.kind == 4 || event.kind == 1059)) {
 					// only the owner can receive DM and GiftWrap event
+					await websocket.send('["CLOSED","' + event.id + '","auth-required: we can\'t serve DMs and GiftWrap to unauthenticated users."]');
 					continue;
 				}
 
@@ -253,7 +255,7 @@ async function doReq(env, websocket, message, isOwner) {
 					let content = await env.KV.get(event.id);
 					// send to client by string combine avoid json encode
 					let eventStr = JSON.stringify(event, ['id', 'pubkey', 'created_at', 'kind', 'tags', 'sig']);
-					await websocket.send('["EVENT","'+subscriptionId+'",{"content":"'+content+'",'+eventStr.substring(1)+']');
+					await websocket.send('["EVENT","' + subscriptionId + '",{"content":"' + content + '",' + eventStr.substring(1) + ']');
 					continue
 				}
 
@@ -261,7 +263,7 @@ async function doReq(env, websocket, message, isOwner) {
 			}
 		}
 
-		await websocket.send('["EOSE","'+subscriptionId+'"]');
+		await websocket.send('["EOSE","' + subscriptionId + '"]');
 	}
 }
 
@@ -271,7 +273,7 @@ async function doCount(env, websocket, message) {
 		let filter = message[2];
 
 		let count = await doQueryCount(env, filter);
-		await websocket.send('["COUNT","'+subscriptionId+'",'+count+']');
+		await websocket.send('["COUNT","' + subscriptionId + '",' + count + ']');
 	}
 }
 
@@ -297,14 +299,14 @@ function queryEventsSql(filter, doCount, params) {
 	let key = 'ids';
 	if (filter[key] != null && filter[key] instanceof Array && filter[key].length > 0) {
 		params.push.apply(params, filter[key]);
-		conditions.push('id IN('+makePlaceHolders(filter[key].length)+')')
+		conditions.push('id IN(' + makePlaceHolders(filter[key].length) + ')')
 		filter[key] = null;
 	}
 
 	key = 'authors';
 	if (filter[key] != null && filter[key] instanceof Array && filter[key].length > 0) {
 		params.push.apply(params, filter[key]);
-		conditions.push('pubkey IN('+makePlaceHolders(filter[key].length)+')')
+		conditions.push('pubkey IN(' + makePlaceHolders(filter[key].length) + ')')
 		filter[key] = null;
 	}
 
@@ -320,7 +322,7 @@ function queryEventsSql(filter, doCount, params) {
 		}
 
 		params.push.apply(params, filter[key]);
-		conditions.push('kind IN('+makePlaceHolders(filter[key].length)+')')
+		conditions.push('kind IN(' + makePlaceHolders(filter[key].length) + ')')
 		filter[key] = null;
 	}
 
@@ -344,7 +346,7 @@ function queryEventsSql(filter, doCount, params) {
 	let search = filter[key];
 	if (search != null && typeof search == 'string') {
 		conditions.push('content LIKE ? ESCAPE "\\"');
-		params.push('%'+search.replaceAll('%', '\%')+'%');
+		params.push('%' + search.replaceAll('%', '\%') + '%');
 	}
 	filter[key] = null;
 
@@ -352,11 +354,11 @@ function queryEventsSql(filter, doCount, params) {
 	for (let k in filter) {
 		let v = filter[k];
 		if (k != 'limit' && v != null) {
-			v.forEach(function(vItem) {
+			v.forEach(function (vItem) {
 				if (vItem.length > 10) {
-					tagQuery.push('\"'+k.replaceAll('#', "")+'\",\"' + getMaxString(vItem, 30));
+					tagQuery.push('\"' + k.replaceAll('#', "") + '\",\"' + getMaxString(vItem, 30));
 				} else {
-					tagQuery.push('\"'+k.replaceAll('#', "")+'\",\"' + vItem);
+					tagQuery.push('\"' + k.replaceAll('#', "") + '\",\"' + vItem);
 				}
 			})
 		}
@@ -364,7 +366,7 @@ function queryEventsSql(filter, doCount, params) {
 	for (let index in tagQuery) {
 		let tagValue = tagQuery[index];
 		conditions.push('tags LIKE ? ESCAPE "\\"');
-		params.push('%'+tagValue.replaceAll('%', '\%')+'%');
+		params.push('%' + tagValue.replaceAll('%', '\%') + '%');
 	}
 
 	if (conditions.length == 0) {
@@ -386,10 +388,10 @@ function queryEventsSql(filter, doCount, params) {
 	}
 
 	if (doCount) {
-		return 'SELECT COUNT(*) as total FROM event WHERE '+ conditions.join(' And ') +' ORDER BY created_at DESC LIMIT ?';
+		return 'SELECT COUNT(*) as total FROM event WHERE ' + conditions.join(' And ') + ' ORDER BY created_at DESC LIMIT ?';
 	}
 
-	return 'SELECT id, pubkey, created_at, kind, tags, content, sig FROM event WHERE '+ conditions.join(' And ') +' ORDER BY created_at DESC LIMIT ?'
+	return 'SELECT id, pubkey, created_at, kind, tags, content, sig FROM event WHERE ' + conditions.join(' And ') + ' ORDER BY created_at DESC LIMIT ?'
 }
 
 function getMaxString(inputString, num) {
@@ -425,7 +427,7 @@ async function doEvent(env, websocket, event) {
 					// try to delete kv
 					try {
 						await env.KV.delete(v);
-					} catch (e) {}
+					} catch (e) { }
 				}
 			}
 		}
